@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <base target="_top">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <?!= include('css'); ?>
+</head>
+
+<body>
+
+    <!-- AUTH MODULE -->
+    <div id="auth-container" class="login-container">
+
+        <!-- Login Card -->
+        <div id="login-card" class="login-card">
+            <h2 style="color:var(--primary); text-align:center; margin-bottom:30px;">College Portal</h2>
+            <form onsubmit="Auth.login(event)">
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="login-email" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="login-password" class="form-control" required>
+                </div>
+                <div style="text-align:right; margin-bottom:15px;">
+                    <a href="#" onclick="Auth.toggleView('forgot')" style="font-size:12px; color:var(--primary);">Forgot
+                        Password?</a>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width:100%;">Login</button>
+            </form>
+        </div>
+
+        <!-- Forgot Password Card -->
+        <div id="forgot-card" class="login-card hidden">
+            <h2 style="color:var(--primary); text-align:center; margin-bottom:20px;">Reset Password</h2>
+
+            <!-- Step 1: Request Code -->
+            <form id="forgot-step-1" onsubmit="Auth.requestReset(event)">
+                <p style="font-size:13px; color:var(--gray); margin-bottom:15px;">Enter your registered email to receive
+                    a reset code.</p>
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="reset-email" class="form-control" required>
+                </div>
+                <button type="submit" class="btn btn-warning" style="width:100%;">Send Code</button>
+                <div style="text-align:center; margin-top:15px;">
+                    <a href="#" onclick="Auth.toggleView('login')" style="font-size:12px;">Back to Login</a>
+                </div>
+            </form>
+
+            <!-- Step 2: Verify & Change -->
+            <form id="forgot-step-2" class="hidden" onsubmit="Auth.confirmReset(event)">
+                <p style="font-size:13px; color:var(--success); margin-bottom:15px;">Code sent! Check your inbox (and
+                    spam).</p>
+                <div class="form-group">
+                    <label>Reset Token</label>
+                    <input type="text" id="reset-token" class="form-control" placeholder="6-digit code" required>
+                </div>
+                <div class="form-group">
+                    <label>New Password</label>
+                    <input type="password" id="reset-new-pass" class="form-control" required>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width:100%;">Change Password</button>
+            </form>
+        </div>
+
+    </div>
+
+    <!-- MAIN APP MODULE -->
+    <div id="app-view" class="hidden" style="width:100%; display:flex;">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="brand">
+                <i class="fas fa-graduation-cap"></i> Akkhor
+            </div>
+            <ul class="nav-links" id="sidebar-nav">
+                <!-- Injected by JS based on Role -->
+            </ul>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main">
+            <div class="topbar">
+                <h3 id="page-title">Dashboard</h3>
+                <div class="user-info">
+                    <span id="user-role-badge" class="badge badge-warning" style="margin-right:10px;">Role</span>
+                    <span id="user-name">User</span>
+                    <div class="avatar" id="user-avatar">U</div>
+                </div>
+            </div>
+            <div class="content-area" id="main-content">
+                <!-- Dynamic Content -->
+            </div>
+        </div>
+    </div>
+
+    <!-- UTILS -->
+    <div id="toast"></div>
+    <div id="modal-container" class="hidden modal-overlay"></div>
+
+    <?!= include('js'); ?>
+</body>
+
+</html>

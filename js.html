@@ -1,0 +1,291 @@
+<script>
+    /* -------------------------------------------------------------------------- */
+    /*                                STATE & CONFIG                                */
+    /* -------------------------------------------------------------------------- */
+    let currentUser = null;
+
+    // Role Config
+    const MENUS = {
+        'Admin': [
+            { id: 'dashboard', icon: 'fa-home', label: 'Overview' },
+            { id: 'admissions', icon: 'fa-user-plus', label: 'Admissions' },
+            { id: 'directory', icon: 'fa-users', label: 'Student Directory' },
+            { id: 'academics', icon: 'fa-book', label: 'Academics' },
+            { id: 'communication', icon: 'fa-envelope', label: 'Communication' }
+        ],
+        'Teacher': [
+            { id: 'dashboard', icon: 'fa-home', label: 'Overview' },
+            { id: 'directory', icon: 'fa-users', label: 'My Students' },
+            { id: 'academics', icon: 'fa-book-open', label: 'Manage Results' }
+        ],
+        'Student': [
+            { id: 'dashboard', icon: 'fa-home', label: 'My Dashboard' },
+            { id: 'academics', icon: 'fa-graduation-cap', label: 'My Results' }
+        ]
+    };
+
+    /* -------------------------------------------------------------------------- */
+    /*                                    INIT                                    */
+    /* -------------------------------------------------------------------------- */
+
+    window.onload = function () {
+        const stored = localStorage.getItem('cms_user');
+        if (stored) {
+            currentUser = JSON.parse(stored);
+            App.init();
+        }
+    };
+
+    /* -------------------------------------------------------------------------- */
+    /*                                AUTH MODULE                                 */
+    /* -------------------------------------------------------------------------- */
+
+    const Auth = {
+        toggleView: (view) => {
+            document.getElementById('login-card').classList.toggle('hidden', view === 'forgot');
+            document.getElementById('forgot-card').classList.toggle('hidden', view === 'login');
+        },
+
+        login: (e) => {
+            e.preventDefault();
+            const email = document.getElementById('login-email').value;
+            const pass = document.getElementById('login-password').value;
+
+            Utils.api('login', { email: email, password: pass }, (user) => {
+                currentUser = user;
+                localStorage.setItem('cms_user', JSON.stringify(user));
+                App.init();
+            });
+        },
+
+        logout: () => {
+            currentUser = null;
+            localStorage.removeItem('cms_user');
+            location.reload();
+        },
+
+        requestReset: (e) => {
+            e.preventDefault();
+            const email = document.getElementById('reset-email').value;
+            Utils.api('requestPasswordReset', { email }, (res) => {
+                Utils.toast(res.message);
+                document.getElementById('forgot-step-1').classList.add('hidden');
+                document.getElementById('forgot-step-2').classList.remove('hidden');
+            });
+        },
+
+        confirmReset: (e) => {
+            e.preventDefault();
+            const email = document.getElementById('reset-email').value;
+            const token = document.getElementById('reset-token').value;
+            const newPass = document.getElementById('reset-new-pass').value;
+
+            Utils.api('resetPassword', { email, token, newPassword: newPass }, (res) => {
+                Utils.toast(res.message);
+                setTimeout(() => location.reload(), 2000);
+            });
+        }
+    };
+
+    /* -------------------------------------------------------------------------- */
+    /*                                 APP CORE                                   */
+    /* -------------------------------------------------------------------------- */
+
+    const App = {
+        init: () => {
+            document.getElementById('auth-container').classList.add('hidden');
+            document.getElementById('app-view').classList.remove('hidden');
+
+            // Setup Header
+            document.getElementById('user-name').innerText = currentUser.name;
+            document.getElementById('user-role-badge').innerText = currentUser.role;
+            document.getElementById('user-avatar').innerText = currentUser.name[0];
+
+            // Setup Sidebar
+            const menu = MENUS[currentUser.role] || MENUS['Student']; // Fallback
+            const nav = document.getElementById('sidebar-nav');
+            nav.innerHTML = menu.map(item =>
+    \`<li class="nav-item" onclick="Router.navigate('\${item.id}')"><i class="fas \${item.icon}"></i> \${item.label}</li>\`
+      ).join('') + 
+      \`<li class="nav-item" onclick="Auth.logout()"><i class="fas fa-sign-out-alt"></i> Logout</li>\`;
+
+      // Default Route
+      Router.navigate('dashboard');
+    }
+  };
+
+  /* -------------------------------------------------------------------------- */
+  /*                                   ROUTER                                   */
+  /* -------------------------------------------------------------------------- */
+
+  const Router = {
+    navigate: (view) => {
+      // UI Update
+      document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+      const activeItem = Array.from(document.querySelectorAll('.nav-item')).find(el => el.innerText.includes(view)); // Simple check
+      // if(activeItem) activeItem.classList.add('active'); // Needs cleaner select logic but functional
+
+      document.getElementById('main-content').innerHTML = '<div style="text-align:center; padding:50px;"><i class="fas fa-spinner fa-spin fa-2x"></i></div>';
+      
+      switch(view) {
+        case 'dashboard': Dashboard.render(); break;
+        case 'admissions': Students.renderAdmissions(); break;
+        case 'directory': Students.renderDirectory(); break;
+        case 'academics': Academics.render(); break;
+        case 'communication': Utils.renderCommunication(); break;
+      }
+    }
+  };
+
+  /* -------------------------------------------------------------------------- */
+  /*                                MODULES                                     */
+  /* -------------------------------------------------------------------------- */
+  
+  const Dashboard = {
+    render: () => {
+      Utils.api('getDashboardStats', { role: currentUser.role }, (data) => {
+        let statsHtml = '';
+        
+        if (currentUser.role === 'Student') {
+           statsHtml = \`
+            <div class="stat-card">
+               <div class="stat-icon bg-green-light"><i class="fas fa-check"></i></div>
+               <div class="stat-info"><h3>\${data.attendance}</h3><p>My Attendance</p></div>
+            </div>
+            <div class="stat-card">
+               <div class="stat-icon bg-purple-light"><i class="fas fa-star"></i></div>
+               <div class="stat-info"><h3>\${data.lastResult}</h3><p>Last Result</p></div>
+            </div>\`;
+        } else {
+           statsHtml = \`
+            <div class="stat-card">
+               <div class="stat-icon bg-purple-light"><i class="fas fa-user-graduate"></i></div>
+               <div class="stat-info"><h3>\${data.totalStudents}</h3><p>Total Students</p></div>
+            </div>
+            <div class="stat-card">
+               <div class="stat-icon bg-orange-light"><i class="fas fa-chalkboard-teacher"></i></div>
+               <div class="stat-info"><h3>\${data.teachers}</h3><p>Teachers</p></div>
+            </div>
+            <div class="stat-card">
+               <div class="stat-icon bg-red-light"><i class="fas fa-clock"></i></div>
+               <div class="stat-info"><h3>\${data.pendingRequests}</h3><p>Pending Requests</p></div>
+            </div>\`;
+        }
+        
+        document.getElementById('main-content').innerHTML = '<div class="stats-grid">' + statsHtml + '</div>';
+      });
+    }
+  };
+
+  const Students = {
+    renderAdmissions: () => {
+      if(currentUser.role !== 'Admin') return Utils.showError("Access Denied");
+      
+      Utils.api('getPendingAdmissions', {}, (data) => {
+          const rows = data.map(s => \`
+            <tr>
+              <td>\${s.Name}</td><td>\${s.Email}</td><td>\${s.Course}</td>
+              <td><button class="btn btn-success btn-sm" onclick="Students.updateStatus(\${s.rowIndex}, 'Active')">Approve</button></td>
+            </tr>\`).join('');
+          
+          document.getElementById('main-content').innerHTML = \`
+            <div class="table-container"><h3>Pending Admissions</h3>
+              <table><thead><tr><th>Name</th><th>Email</th><th>Course</th><th>Action</th></tr></thead><tbody>\${rows}</tbody></table>
+            </div>\`;
+      });
+    },
+
+    renderDirectory: () => {
+      Utils.api('getAllStudents', {}, (data) => {
+         const canEdit = currentUser.role === 'Admin';
+         
+         const rows = data.map(s => \`
+            <tr>
+              <td>\${s.Name}</td><td>\${s.RegNo}</td><td>\${s.ParentName || '-'}</td><td>\${s.ParentPhone || '-'}</td>
+              <td>\${canEdit ? \`<button class="btn btn-primary" style="padding:5px 10px; font-size:12px;" onclick='Students.openEditModal(\${JSON.stringify(s)})'>Edit</button>\` : '<span class="badge badge-success">Active</span>'}</td>
+            </tr>\`).join('');
+
+         document.getElementById('main-content').innerHTML = \`
+            <div class="table-container"><h3>Student Directory</h3>
+              <table><thead><tr><th>Name</th><th>Reg No</th><th>Parent</th><th>Phone</th><th>Action</th></tr></thead><tbody>\${rows}</tbody></table>
+            </div>\`;
+      });
+    },
+    
+    updateStatus: (rowIndex, status) => {
+       Utils.api('updateStudentStatus', {rowIndex, status, regNo: 'CHECK_IN_API' }, (res) => { // regNo logic simplified
+          Utils.toast(res.message); Router.navigate('admissions');
+       });
+    },
+
+    openEditModal: (student) => {
+       const html = \`
+         <h3>Edit Student: \${student.Name}</h3>
+         <form onsubmit="Students.submitEdit(event, '\${student.rowIndex}')">
+            <div class="form-group"><label>Parent Name</label><input class="form-control" name="parentName" value="\${student.ParentName || ''}"></div>
+            <div class="form-group"><label>Parent Phone</label><input class="form-control" name="parentPhone" value="\${student.ParentPhone || ''}"></div>
+            <button class="btn btn-primary">Save Changes</button>
+            <button type="button" class="btn btn-danger" onclick="document.getElementById('modal-container').classList.add('hidden')">Cancel</button>
+         </form>\`;
+       document.getElementById('modal-container').innerHTML = \`<div class="modal-content">\${html}</div>\`;
+       document.getElementById('modal-container').classList.remove('hidden');
+    },
+
+    submitEdit: (e, rowIndex) => {
+       e.preventDefault();
+       const fd = new FormData(e.target);
+       Utils.api('updateStudentDetails', { rowIndex, parentName: fd.get('parentName'), parentPhone: fd.get('parentPhone') }, (res) => {
+          Utils.toast("Updated!");
+          document.getElementById('modal-container').classList.add('hidden');
+          Router.navigate('directory');
+       });
+    }
+  };
+
+  const Academics = {
+    render: () => {
+       if (currentUser.role === 'Student') {
+          // Show Result Table
+          document.getElementById('main-content').innerHTML = "<h3>My Results</h3><p>Coming Soon...</p>";
+       } else {
+          // Teacher View
+          document.getElementById('main-content').innerHTML = \`
+            <div class="stats-grid">
+               <div class="stat-card" onclick="alert('Func')"><div class="stat-icon bg-primary"><i class="fas fa-plus"></i></div><div class="stat-info"><h3>Upload</h3><p>Add Results</p></div></div>
+            </div>\`;
+       }
+    }
+  };
+
+  /* -------------------------------------------------------------------------- */
+  /*                                   UTILS                                    */
+  /* -------------------------------------------------------------------------- */
+  
+  const Utils = {
+    api: (action, data, onSuccess) => {
+      if (typeof google === 'undefined') { console.log("API:", action, data); return; }
+      google.script.run
+        .withSuccessHandler(res => {
+           const json = JSON.parse(res);
+           if (json.status === 'success') onSuccess(json.data);
+           else Utils.toast("Error: " + json.message);
+        })
+        .withFailureHandler(err => Utils.toast("Server Error: " + err))
+        .doPost({ postData: { contents: JSON.stringify({ action, data }) } });
+    },
+
+    toast: (msg) => {
+      const t = document.getElementById('toast');
+      t.innerText = msg; t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 3000);
+    },
+    
+    showError: (msg) => {
+       document.getElementById('main-content').innerHTML = \`<div style="color:red; text-align:center; margin-top:50px;"><h3><i class="fas fa-ban"></i> \${msg}</h3></div>\`;
+    },
+
+    renderCommunication: () => {
+       document.getElementById('main-content').innerHTML = "<h3>Communication Module</h3><p>Use Bulk Email Tool (Same as V1)</p>";
+    }
+  };
+</script>
